@@ -81,7 +81,7 @@ namespace Nerdbank.Streams
         private readonly Dictionary<string, Queue<TaskCompletionSource<Channel>>> acceptingChannels = new Dictionary<string, Queue<TaskCompletionSource<Channel>>>(StringComparer.Ordinal);
 
         /// <summary>
-        /// A dictionary of all channels, keyed by their number.
+        /// A dictionary of all channels, keyed by their ID.
         /// </summary>
         private readonly Dictionary<int, Channel> openChannels = new Dictionary<int, Channel>();
 

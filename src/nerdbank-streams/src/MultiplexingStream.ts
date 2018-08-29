@@ -8,10 +8,35 @@ import { IDisposableObservable } from './IDisposableObservable';
 import { randomBytes } from 'crypto';
 
 export class MultiplexingStream implements IDisposableObservable {
+    /**
+     * The maximum length of a frame's payload.
+     */
+    private static readonly framePayloadMaxLength = 20 * 1024;
+
+    /**
+     * The magic number to send at the start of communication.
+     * If the protocol ever changes, change this random number. It serves both as a way to recognize the other end actually supports multiplexing and ensure compatibility.
+     */
     private static readonly protocolMagicNumber = new Buffer([0x2f, 0xdf, 0x1d, 0x50]);
+
+    /**
+     * The encoding used for characters in control frames.
+     */
+    private static readonly ControlFrameEncoding = 'utf-8';
     private readonly _completionSource = new Deferred<void>();
 
+    /**
+     * A dictionary of all channels, keyed by their ID.
+     */
+    private readonly openChannels = {};
+
     private _isDisposed: boolean = false;
+
+    /**
+     * The last number assigned to a channel.
+     * Each use of this should increment by two.
+     */
+    private lastOfferedChannelId = 0;
 
     private constructor(private stream: NodeJS.ReadWriteStream, private isOdd: boolean, private options: MultiplexingStreamOptions) {
     }
@@ -123,7 +148,19 @@ export class MultiplexingStream implements IDisposableObservable {
      * or faults with `MultiplexingProtocolException` if the remote end rejects the channel.
      */
     public async offerChannelAsync(name: string, options?: ChannelOptions, cancellationToken?: CancellationToken): Promise<Channel> {
-        return new ChannelClass();
+        if (!name) {
+            throw new Error("Name must be specified.");
+        }
+
+        var payload = new Buffer(name, MultiplexingStream.ControlFrameEncoding);
+        if (payload.length > MultiplexingStream.framePayloadMaxLength) {
+            throw new Error("Name is too long.");
+        }
+
+        var channel = new ChannelClass(this, this.getUnusedChannelId(), name, false, options);
+        this.openChannels[channel.id] = channel;
+
+        return channel;
     }
 
     /**
@@ -135,7 +172,7 @@ export class MultiplexingStream implements IDisposableObservable {
      * @description If multiple offers exist with the specified `name`, the first one received will be accepted.
      */
     public async acceptChannelAsync(name: string, options?: ChannelOptions, cancellationToken?: CancellationToken): Promise<Channel> {
-        return new ChannelClass();
+        return null;
     }
 
     /**
@@ -162,5 +199,13 @@ export class MultiplexingStream implements IDisposableObservable {
 
             return readBuffer;
         }
+    }
+
+    /**
+     * Gets a unique number that can be used to represent a channel.
+     * @description The channel numbers increase by two in order to maintain odd or even numbers, since each party is allowed to create only one or the other.
+     */
+    private getUnusedChannelId() {
+        return this.lastOfferedChannelId += 2;
     }
 }

@@ -6,8 +6,8 @@ import { log } from 'util';
 import { DuplexPair } from './DuplexPair';
 
 describe('MultiplexingStream', () => {
-    var mx1 : MultiplexingStream;
-    var mx2 : MultiplexingStream;
+    var mx1: MultiplexingStream;
+    var mx2: MultiplexingStream;
     beforeEach(async () => {
         var underlyingPair = DuplexPair.Create();
         var mxs = await Promise.all([
@@ -49,6 +49,13 @@ describe('MultiplexingStream', () => {
     });
 
     it('An offered channel is accepted', async () => {
+        await Promise.all([
+            mx1.offerChannelAsync('test'),
+            mx2.acceptChannelAsync('test'),
+        ]);
+    });
+
+    it('Can exchange data over channel', async () => {
         var channels = await Promise.all([
             mx1.offerChannelAsync('test'),
             mx2.acceptChannelAsync('test'),
@@ -56,4 +63,18 @@ describe('MultiplexingStream', () => {
         channels[0].duplex.write('abc');
         expect(channels[1].duplex.read()).toEqual(new Buffer('abc'));
     });
+
+    it('offered channels must have names', async () => {
+        await expectThrow(mx1.offerChannelAsync(null));
+    });
 });
+
+async function expectThrow<T>(promise: Promise<T>): Promise<T> {
+    try {
+        await promise;
+        fail("Expected error not thrown.");
+    }
+    catch {
+        return null;
+    }
+}

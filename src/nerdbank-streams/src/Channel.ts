@@ -1,6 +1,8 @@
 import { Duplex } from "stream";
 import { Deferred } from "./Deferred";
 import { IDisposableObservable } from './IDisposableObservable';
+import { MultiplexingStream } from ".";
+import { ChannelOptions } from "./ChannelOptions";
 
 export interface Channel extends IDisposableObservable {
     duplex: Duplex;
@@ -15,7 +17,8 @@ export class ChannelClass implements Channel {
     private readonly _acceptance = new Deferred<void>();
     private readonly _completion = new Deferred<void>();
 
-    constructor() {
+    constructor(private multiplexingStream: MultiplexingStream, id: number, private name: string, private offeredByThem: false, private options: ChannelOptions) {
+        this.id = id;
         this._duplex = new Duplex({
             write(chunk, encoding, callback) {
 
